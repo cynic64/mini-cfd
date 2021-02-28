@@ -1,9 +1,10 @@
 import numpy as np
 
-# Returns array with shape (m-1,n-1)
+# Returns array with shape (m-2,n-2)
+# Uses central differences
 def divergence(u, v, dx, dy):
-        u_diff_x = (u[:-1,1:] - u[:-1,:-1]) / dx
-        v_diff_y = (v[1:,:-1] - v[:-1,:-1]) / dy
+        u_diff_x = (u[1:-1,2:] - u[1:-1,:-2]) / (2*dx)
+        v_diff_y = (v[2:,1:-1] - v[:-2,1:-1]) / (2*dy)
 
         return u_diff_x + v_diff_y
 
