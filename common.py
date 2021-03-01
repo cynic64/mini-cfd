@@ -38,7 +38,8 @@ def poisson_solve(p, rhs, dx, dy, target_diff=0.0001):
                 vert_part = (p[2:,1:-1] + p[:-2,1:-1]) * dx**2
 
                 p_next = np.empty_like(p)
-                p_next[1:-1,1:-1] = (horiz_part + vert_part - (rhs * dx**2 * dy**2)) \
+
+                p_next[1:-1,1:-1] = (horiz_part + vert_part - (rhs[1:-1,1:-1] * dx**2 * dy**2)) \
                         / (2 * dx**2 + 2 * dy**2)
 
                 # Derivatives at borders should be 0
