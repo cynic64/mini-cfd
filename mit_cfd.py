@@ -55,12 +55,13 @@ def convect(u, v, dx, dy, dt):
 
 # Apply once to each dimension in the velocity field
 def apply_viscosity(u, nu, dx, dy, dt):
-        rhs = u.copy()
+        rhs = u.copy()[1:-1,1:-1]
 
-        div = nu*(-2/(dx**2) - 2/(dy**2))
-
+        denom = (2*nu*dt)/(dx**2) + (2*nu*dt)/(dy**2) + 1
         for iter in range(100):
-                u[1:-1,1:-1] = (rhs[1:-1,1:-1] + dt*nu*common.laplacian(u.copy(), dx, dy)) / div
+                horiz = (u[1:-1,2:] + u[1:-1,:-2]) / (dx**2)
+                vert = (u[2:,1:-1] + u[:-2,1:-1]) / (dy**2)
+                u[1:-1,1:-1] = (rhs - nu*dt*(horiz + vert) ) / denom
 
 def apply_bc(u, v):
         u[0,:] = 0
@@ -71,6 +72,8 @@ def apply_bc(u, v):
         v[-1,:] = 0
         v[:,0] = 0
         v[:,-1] = 0
+
+        #u[50,30:-30] = 10
 
 # Setup mesh
 len_x, len_y = 2, 2
@@ -88,12 +91,14 @@ v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.li
 
 # Constants
 dt = 0.001
-nu = 0.1
+nu = 0
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
-u = np.sin(u_x_mesh**2 + u_y_mesh**2)
-v = np.cos(v_x_mesh**2 + v_y_mesh**2)
+#u = np.zeros((ny+2, nx+1))
+#v = np.zeros((ny+1, nx+2))
+u = np.sin(u_x_mesh**2 + u_y_mesh**2) * 10
+v = np.cos(v_x_mesh**2 + v_y_mesh**2) * 10
 apply_bc(u, v)
 
 start_time = 0
@@ -104,14 +109,14 @@ for i in range(1000001):
         speed = np.sqrt(u_avg**2+v_avg**2)
         print(f'Max speed: {np.max(speed)}, dt: {dt}')
 
-        if i % 30 == 0 or end_time - start_time > 1:
+        if i % 30 == 0 or end_time - start_time > 1 or i <= 10:
                 divergence = common.divergence(u_avg, v_avg, dx, dy)
                 plt.imshow(divergence, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
                 plt.colorbar()
 
-                lw = 5*speed/speed.max()
-                #plt.streamplot(x_mesh[:-1,:-1], y_mesh[:-1,:-1], u_avg, v_avg, linewidth=lw)
-                plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
+                lw = 0.1*speed/speed.max()
+                plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
+                #plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
                 plt.savefig(f'img/{i:07}.png', dpi=300)
                 plt.clf()
 
@@ -119,8 +124,9 @@ for i in range(1000001):
         print(i)
 
         convect(u, v, dx, dy, dt)
-        #apply_viscosity(u, nu, dx, dy, dt)
-        #apply_viscosity(v, nu, dx, dy, dt)
+        apply_viscosity(u, nu, dx, dy, dt)
+        apply_viscosity(v, nu, dx, dy, dt)
 
         end_time = time.time()
 
+        apply_bc(u, v)
