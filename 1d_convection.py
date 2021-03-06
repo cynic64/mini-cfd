@@ -2,11 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def convect(u, dx, dt):
-        u_right_avg = (u[1:-1] + u[2:]) / 2
-        u_left_avg = (u[1:-1] + u[:-2]) / 2
-
-        u_plus = np.maximum(u_left_avg, np.zeros_like(u_left_avg))
-        u_minus = np.minimum(u_right_avg, np.zeros_like(u_right_avg))
+        u_plus = np.clip(u[1:-1], 0, None)
+        u_minus = np.clip(u[1:-1], None, 0)
 
         u_minus_diff_x = (u[1:-1] - u[:-2]) / dx
         u_plus_diff_x = (u[2:] - u[1:-1]) / dx
@@ -20,7 +17,7 @@ x_points = np.linspace(0, Lx, nx+1)
 dx = Lx / nx
 dt = 0.001
 
-u = np.zeros(nx+1)
+u = np.ones(nx+1)
 u[10:20] = 10
 
 for i in range(1000001):

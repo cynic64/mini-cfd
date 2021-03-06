@@ -117,7 +117,7 @@ v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.li
 
 # Constants
 dt = 0.001
-nu = 1e-5
+nu = 1e-3
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
@@ -137,13 +137,21 @@ for i in range(1000001):
         print(f'Max speed: {np.max(speed)}, dt: {dt}')
 
         if i % 50 == 0 or end_time - start_time > 1 or i <= 10:
-                divergence = common.divergence(u_avg, v_avg, dx, dy)
-                plt.imshow(divergence, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
+                #plt.subplot(1, 2, 1)
+                #divergence = common.divergence(u_avg, v_avg, dx, dy)
+                plt.imshow(pressure, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
                 plt.colorbar()
 
                 lw = 5*speed/speed.max()
-                plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
-                #plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
+                #plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
+                plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
+
+                '''
+                plt.subplot(1, 2, 2)
+                plt.imshow(v, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
+                plt.colorbar()
+                '''
+
                 plt.savefig(f'img/{i:07}.png', dpi=300)
                 plt.clf()
 
