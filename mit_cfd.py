@@ -64,16 +64,42 @@ def apply_viscosity(u, nu, dx, dy, dt):
                 u[1:-1,1:-1] = (rhs - nu*dt*(horiz + vert) ) / denom
 
 def apply_bc(u, v):
-        u[0,:] = 0
-        u[-1,:] = 0
-        u[:,0] = 0
-        u[:,-1] = 0
-        v[0,:] = 0
-        v[-1,:] = 0
-        v[:,0] = 0
-        v[:,-1] = 0
+        # Prescribed values
+        u_north, u_south, u_west, u_east = 10, 0, 0, 0
+        v_north, v_south, v_west, v_east = 0, 0, 0, 0
 
-        #u[50,30:-30] = 10
+        u[0,:] = 2*u_south - u[1,:]
+        u[-1,:] = 2*u_north - u[-2,:]
+        u[:,0] = u_west
+        u[:,-1] = u_east
+        v[0,:] = v_south
+        v[-1,:] = v_north
+        v[:,0] = 2*v_west - v[:,1]
+        v[:,-1] = 2*v_east - v[:,-2]
+
+def pressure_rhs(u, v, dx, dy, dt):
+        u_diff_x = (u[1:-1,1:] - u[1:-1,:-1]) / dx
+        v_diff_y = (v[1:,1:-1] - v[:-1,1:-1]) / dy
+
+        return (1/dt) * (u_diff_x + v_diff_y)
+
+def poisson_solve(p, rhs, dx, dy):
+        for iter in range(100):
+                horiz = dy**2 * (p[1:-1,2:] + p[1:-1,:-2])
+                vert = dx**2 * (p[2:,1:-1] + p[:-2,1:-1])
+
+                p[1:-1,1:-1] = (horiz + vert - dx**2 * dy**2 * rhs) / (2*dx**2 + 2 *dy**2)
+                p[0,:] = p[1,:]
+                p[-1,:] = p[-2,:]
+                p[:,0] = p[:,1]
+                p[:,-1] = p[:,-2]
+
+def apply_pressure(u, v, p, dx, dy, dt):
+        p_diff_x = (p[1:-1,1:] - p[1:-1,:-1]) / dx
+        p_diff_y = (p[1:,1:-1] - p[:-1,1:-1]) / dy
+
+        u[1:-1,:] -= dt * p_diff_x
+        v[:,1:-1] -= dt * p_diff_y
 
 # Setup mesh
 len_x, len_y = 2, 2
@@ -91,14 +117,15 @@ v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.li
 
 # Constants
 dt = 0.001
-nu = 0
+nu = 1e-5
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
-#u = np.zeros((ny+2, nx+1))
-#v = np.zeros((ny+1, nx+2))
-u = np.sin(u_x_mesh**2 + u_y_mesh**2) * 10
-v = np.cos(v_x_mesh**2 + v_y_mesh**2) * 10
+u = np.zeros((ny+2, nx+1))
+v = np.zeros((ny+1, nx+2))
+#u = np.sin(u_x_mesh**2 + u_y_mesh**2) * 10
+#v = np.cos(v_x_mesh**2 + v_y_mesh**2) * 10
+pressure = np.zeros((ny+2, nx+2))
 apply_bc(u, v)
 
 start_time = 0
@@ -109,12 +136,12 @@ for i in range(1000001):
         speed = np.sqrt(u_avg**2+v_avg**2)
         print(f'Max speed: {np.max(speed)}, dt: {dt}')
 
-        if i % 30 == 0 or end_time - start_time > 1 or i <= 10:
+        if i % 50 == 0 or end_time - start_time > 1 or i <= 10:
                 divergence = common.divergence(u_avg, v_avg, dx, dy)
                 plt.imshow(divergence, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
                 plt.colorbar()
 
-                lw = 0.1*speed/speed.max()
+                lw = 5*speed/speed.max()
                 plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
                 #plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
                 plt.savefig(f'img/{i:07}.png', dpi=300)
@@ -123,10 +150,13 @@ for i in range(1000001):
         start_time = time.time()
         print(i)
 
+        apply_bc(u, v)
         convect(u, v, dx, dy, dt)
         apply_viscosity(u, nu, dx, dy, dt)
         apply_viscosity(v, nu, dx, dy, dt)
+        rhs = pressure_rhs(u, v, dx, dy, dt)
+        poisson_solve(pressure, rhs, dx, dy)
+        apply_pressure(u, v, pressure, dx, dy, dt)
 
         end_time = time.time()
 
-        apply_bc(u, v)
