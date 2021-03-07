@@ -12,42 +12,36 @@ def average_velocities(u, v):
 def convect(u, v, dx, dy, dt):
         ## Changing u
         # u*u_x
-        u_right_avg = (u[1:-1,2:] + u[1:-1,1:-1]) / 2
-        u_left_avg = (u[1:-1,:-2] + u[1:-1,1:-1]) / 2
         u_diff_x_forward = (u[1:-1,2:] - u[1:-1,1:-1]) / dx
         u_diff_x_backward = (u[1:-1,1:-1] - u[1:-1,:-2]) / dx
         # Only use forward if u is negative
-        u_diff_x_forward_coef = np.clip(u_right_avg, None, 0)
+        u_diff_x_forward_coef = np.clip(u[1:-1,1:-1], None, 0)
         # Only use backward if u is positive
-        u_diff_x_backward_coef = np.clip(u_left_avg, 0, None)
+        u_diff_x_backward_coef = np.clip(u[1:-1,1:-1], 0, None)
         uu_x = u_diff_x_forward_coef*u_diff_x_forward + u_diff_x_backward_coef*u_diff_x_backward
 
         # v*u_y
-        v_down_avg = (v[:-1,1:-2] + v[:-1,2:-1]) / 2
-        v_up_avg = (v[1:,1:-2] + v[1:,2:-1]) / 2
+        v_avg = (v[1:,1:-2] + v[1:,2:-1] + v[:-1,1:-2] + v[:-1,2:-1]) / 4
         u_diff_y_forward = (u[2:,1:-1] - u[1:-1,1:-1]) / dy
         u_diff_y_backward = (u[1:-1,1:-1] - u[:-2,1:-1]) / dy
-        u_diff_y_forward_coef = np.clip(v_down_avg, None, 0)
-        u_diff_y_backward_coef = np.clip(v_up_avg, 0, None)
+        u_diff_y_forward_coef = np.clip(v_avg, None, 0)
+        u_diff_y_backward_coef = np.clip(v_avg, 0, None)
         vu_y = u_diff_y_forward_coef*u_diff_y_forward + u_diff_y_backward_coef*u_diff_y_backward
 
         ## Changing v
         # v*v_y
-        v_down_avg = (v[2:,1:-1] + v[1:-1,1:-1]) / 2
-        v_up_avg = (v[1:-1,1:-1] + v[:-2,1:-1]) / 2
         v_diff_y_forward = (v[2:,1:-1] - v[1:-1,1:-1]) / dy
         v_diff_y_backward = (v[1:-1,1:-1] - v[:-2,1:-1]) / dy
-        v_diff_y_forward_coef = np.clip(v_down_avg, None, 0)
-        v_diff_y_backward_coef = np.clip(v_up_avg, 0, None)
+        v_diff_y_forward_coef = np.clip(v[1:-1,1:-1], None, 0)
+        v_diff_y_backward_coef = np.clip(v[1:-1,1:-1], 0, None)
         vv_y = v_diff_y_forward_coef*v_diff_y_forward + v_diff_y_backward_coef*v_diff_y_backward
 
         # u*v_y
-        u_right_avg = (u[1:-2,1:] + u[2:-1,1:]) / 2
-        u_left_avg = (u[1:-2,:-1] + u[2:-1,:-1]) / 2
+        u_avg = (u[1:-2,1:] + u[2:-1,1:] + u[1:-2,:-1] + u[2:-1,:-1]) / 4
         v_diff_x_forward = (v[1:-1,2:] - v[1:-1,1:-1]) / dx
         v_diff_x_backward = (v[1:-1,1:-1] - v[1:-1,:-2]) / dx
-        v_diff_x_forward_coef = np.clip(u_right_avg, None, 0)
-        v_diff_x_backward_coef = np.clip(u_left_avg, None, 0)
+        v_diff_x_forward_coef = np.clip(u_avg, None, 0)
+        v_diff_x_backward_coef = np.clip(u_avg, None, 0)
         uv_x = v_diff_x_forward_coef*v_diff_x_forward + v_diff_y_forward_coef*v_diff_y_forward
 
         u[1:-1,1:-1] -= dt * (uu_x + vu_y)
@@ -61,11 +55,11 @@ def apply_viscosity(u, nu, dx, dy, dt):
         for iter in range(100):
                 horiz = (u[1:-1,2:] + u[1:-1,:-2]) / (dx**2)
                 vert = (u[2:,1:-1] + u[:-2,1:-1]) / (dy**2)
-                u[1:-1,1:-1] = (rhs - nu*dt*(horiz + vert) ) / denom
+                u[1:-1,1:-1] = (rhs + nu*dt*(horiz + vert) ) / denom
 
 def apply_bc(u, v):
         # Prescribed values
-        u_north, u_south, u_west, u_east = 10, 0, 0, 0
+        u_north, u_south, u_west, u_east = 20, 0, 0, 0
         v_north, v_south, v_west, v_east = 0, 0, 0, 0
 
         u[0,:] = 2*u_south - u[1,:]
@@ -104,7 +98,7 @@ def apply_pressure(u, v, p, dx, dy, dt):
 # Setup mesh
 len_x, len_y = 2, 2
 # Number of pressure points
-nx, ny = 100, 100
+nx, ny = 200,200
 dx, dy = len_x / nx, len_y / ny
 # These are the positions of the cell centers
 x_points = np.linspace(dx/2, len_x-dx/2, nx)
@@ -117,7 +111,7 @@ v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.li
 
 # Constants
 dt = 0.001
-nu = 1e-3
+nu = 1e-6
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
@@ -139,16 +133,16 @@ for i in range(1000001):
         if i % 50 == 0 or end_time - start_time > 1 or i <= 10:
                 #plt.subplot(1, 2, 1)
                 #divergence = common.divergence(u_avg, v_avg, dx, dy)
-                plt.imshow(pressure, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
+                plt.imshow(pressure, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y), vmin=-10, vmax=10)
                 plt.colorbar()
 
                 lw = 5*speed/speed.max()
-                #plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
-                plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
+                plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
+                #plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
 
                 '''
                 plt.subplot(1, 2, 2)
-                plt.imshow(v, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y))
+                plt.imshow(v, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y), vmin=-20, vmax=20)
                 plt.colorbar()
                 '''
 

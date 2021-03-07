@@ -2,22 +2,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def convect(u, dx, dt):
-        u_plus = np.clip(u[1:-1], 0, None)
-        u_minus = np.clip(u[1:-1], None, 0)
+        middle = u[2:-2]
 
-        u_minus_diff_x = (u[1:-1] - u[:-2]) / dx
-        u_plus_diff_x = (u[2:] - u[1:-1]) / dx
+        diff_forward = ( -u[4:] + 6*u[3:-1] + -3*middle + -2*u[1:-3] ) / (6*dx)
+        diff_backward = ( 2*u[3:-1] + 3*middle + -6*u[1:-3] + u[:-4] ) / (6*dx)
+        coef_forward = np.clip(middle, None, 0)
+        coef_backward = np.clip(middle, 0, None)
 
-        u[1:-1] -= dt * (u_plus*u_minus_diff_x + u_minus*u_plus_diff_x)
+        step = coef_forward*diff_forward + coef_backward*diff_backward
+
+        u[2:-2] -= dt*step
 
 Lx = 2
 # Number of cells, not data points
-nx = 100
+nx = 200
 x_points = np.linspace(0, Lx, nx+1)
 dx = Lx / nx
 dt = 0.001
 
-u = np.ones(nx+1)
+u = np.zeros(nx+1)
 u[10:20] = 10
 
 for i in range(1000001):
