@@ -56,4 +56,3 @@ def poisson_solve(p, rhs, dx, dy, target_diff=0.0001):
         print(f'Took {i} iterations.')
 
         return p
-
