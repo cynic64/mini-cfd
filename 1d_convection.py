@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def convect(u, c, dx, dt):
-        u_backward_diff_x = (u[1:-1] - u[:-2]) / dx
+        u_forward_diff_x = (u[2:] - u[1:-1]) / dx
         predicted = u.copy()
         predicted[1:-1] += -c * dt * u_backward_diff_x
 
         corrected = u.copy()
-        predicted_forward_diff_x = (predicted[2:] - predicted[1:-1])/dx
+        predicted_backward_diff_x = (predicted[1:-1] - predicted[:-2])/dx
         corrected[1:-1] = (u[1:-1] + predicted[1:-1]) / 2 - 0.5*c*dt*predicted_forward_diff_x
 
         u[1:-1] = corrected[1:-1]
