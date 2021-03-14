@@ -1,18 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def convect(u, prev_u, c, dx, dt):
-        # First: FTCS
-        u_diff_x = (u[2:] - u[:-2]) / (2*dx)
+def convect(u, c, dx, dt):
+        u_backward_diff_x = (u[1:-1] - u[:-2]) / dx
+        predicted = u.copy()
+        predicted[1:-1] += -c * dt * u_backward_diff_x
 
-        new_u = u.copy()[1:-1]
-        new_u += dt * -c * u_diff_x
+        corrected = u.copy()
+        predicted_forward_diff_x = (predicted[2:] - predicted[1:-1])/dx
+        corrected[1:-1] = (u[1:-1] + predicted[1:-1]) / 2 - 0.5*c*dt*predicted_forward_diff_x
 
-        # Adjust
-        u_diff2_t = (prev_u[1:-1] - 2*u[1:-1] + new_u) / (dt**2)
-
-        new_u += 0.5 * dt**2 * u_diff2_t
-        u[1:-1] = new_u
+        u[1:-1] = corrected[1:-1]
 
 Lx = 2
 # Number of cells, not data points
@@ -39,6 +37,4 @@ for i in range(1000001):
                 plt.savefig(f'img/{i:07}.png', dpi=300)
                 plt.clf()
 
-        u_orig = u.copy()
-        convect(u, prev_u, c, dx, dt)
-        prev_u = u_orig
+        convect(u, c, dx, dt)
