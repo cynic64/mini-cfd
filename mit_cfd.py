@@ -9,43 +9,45 @@ def average_velocities(u, v):
 
         return u_avg, v_avg
 
+def vorticity(u, v, dx, dy):
+        u_diff_x = (u[:,1:] - u[:,:-1]) / dx
+        u_diff_y = (u[1:,:] - u[:-1,:]) / dy
+        u_diff_y_centered = (u_diff_y[1:,1:] + u_diff_y[1:,:-1] + u_diff_y[:-1,1:] + u_diff_y[:-1,:-1]) / 4
+
+        v_diff_x = (v[:,1:] - v[:,:-1]) / dx
+        v_diff_x_centered = (v_diff_x[1:,1:] + v_diff_x[1:,:-1] + v_diff_x[:-1,1:] + v_diff_x[:-1,:-1]) / 4
+        v_diff_y = (v[1:,:] - v[:-1,:]) / dy
+
+        return v_diff_x - u_diff_y
+
 def convect(u, v, dx, dy, dt):
-        ## Changing u
-        # u*u_x
+        v_at_u = (v[1:,1:-2] + v[1:,2:-1] + v[:-1,1:-2] + v[:-1,2:-1]) / 4
+        u_at_v = (u[1:-2,1:] + u[2:-1,1:] + u[1:-2,:-1] + u[2:-1,:-1]) / 4
+
+        # Predict
+        predicted_u = u.copy()
         u_diff_x_forward = (u[1:-1,2:] - u[1:-1,1:-1]) / dx
-        u_diff_x_backward = (u[1:-1,1:-1] - u[1:-1,:-2]) / dx
-        # Only use forward if u is negative
-        u_diff_x_forward_coef = np.clip(u[1:-1,1:-1], None, 0)
-        # Only use backward if u is positive
-        u_diff_x_backward_coef = np.clip(u[1:-1,1:-1], 0, None)
-        uu_x = u_diff_x_forward_coef*u_diff_x_forward + u_diff_x_backward_coef*u_diff_x_backward
-
-        # v*u_y
-        v_avg = (v[1:,1:-2] + v[1:,2:-1] + v[:-1,1:-2] + v[:-1,2:-1]) / 4
         u_diff_y_forward = (u[2:,1:-1] - u[1:-1,1:-1]) / dy
-        u_diff_y_backward = (u[1:-1,1:-1] - u[:-2,1:-1]) / dy
-        u_diff_y_forward_coef = np.clip(v_avg, None, 0)
-        u_diff_y_backward_coef = np.clip(v_avg, 0, None)
-        vu_y = u_diff_y_forward_coef*u_diff_y_forward + u_diff_y_backward_coef*u_diff_y_backward
+        predicted_u[1:-1,1:-1] += -dt * (u[1:-1,1:-1] * u_diff_x_forward + v_at_u * u_diff_y_forward)
 
-        ## Changing v
-        # v*v_y
-        v_diff_y_forward = (v[2:,1:-1] - v[1:-1,1:-1]) / dy
-        v_diff_y_backward = (v[1:-1,1:-1] - v[:-2,1:-1]) / dy
-        v_diff_y_forward_coef = np.clip(v[1:-1,1:-1], None, 0)
-        v_diff_y_backward_coef = np.clip(v[1:-1,1:-1], 0, None)
-        vv_y = v_diff_y_forward_coef*v_diff_y_forward + v_diff_y_backward_coef*v_diff_y_backward
-
-        # u*v_y
-        u_avg = (u[1:-2,1:] + u[2:-1,1:] + u[1:-2,:-1] + u[2:-1,:-1]) / 4
+        predicted_v = v.copy()
         v_diff_x_forward = (v[1:-1,2:] - v[1:-1,1:-1]) / dx
-        v_diff_x_backward = (v[1:-1,1:-1] - v[1:-1,:-2]) / dx
-        v_diff_x_forward_coef = np.clip(u_avg, None, 0)
-        v_diff_x_backward_coef = np.clip(u_avg, None, 0)
-        uv_x = v_diff_x_forward_coef*v_diff_x_forward + v_diff_y_forward_coef*v_diff_y_forward
+        v_diff_y_forward = (v[2:,1:-1] - v[1:-1,1:-1]) / dy
+        predicted_v[1:-1,1:-1] += -dt * (u_at_v * v_diff_x_forward + v[1:-1,1:-1] * v_diff_y_forward)
 
-        u[1:-1,1:-1] -= dt * (uu_x + vu_y)
-        v[1:-1,1:-1] -= dt * (vv_y + uv_x)
+        # Correct
+        u_corrected = (u + predicted_u) / 2
+        u_pred_diff_x_backward = (predicted_u[1:-1,1:-1] - predicted_u[1:-1,:-2]) / dx
+        u_pred_diff_y_backward = (predicted_u[1:-1,1:-1] - predicted_u[:-2,1:-1]) / dy
+        u_corrected[1:-1,1:-1] += -0.5 * dt * (u[1:-1,1:-1] * u_pred_diff_x_backward + v_at_u * u_pred_diff_y_backward)
+
+        v_corrected = (v + predicted_v) / 2
+        v_pred_diff_x_backward = (predicted_v[1:-1,1:-1] - predicted_v[1:-1,:-2]) / dx
+        v_pred_diff_y_backward = (predicted_v[1:-1,1:-1] - predicted_v[:-2,1:-1]) / dy
+        v_corrected[1:-1,1:-1] += -0.5 * dt * (u_at_v * v_pred_diff_x_backward + v[1:-1,1:-1] * v_pred_diff_y_backward)
+
+        u[1:-1,1:-1] = u_corrected[1:-1,1:-1]
+        v[1:-1,1:-1] = v_corrected[1:-1,1:-1]
 
 # Apply once to each dimension in the velocity field
 def apply_viscosity(u, nu, dx, dy, dt):
@@ -59,7 +61,7 @@ def apply_viscosity(u, nu, dx, dy, dt):
 
 def apply_bc(u, v):
         # Prescribed values
-        u_north, u_south, u_west, u_east = 20, 0, 0, 0
+        u_north, u_south, u_west, u_east = 10, 0, 0, 0
         v_north, v_south, v_west, v_east = 0, 0, 0, 0
 
         u[0,:] = 2*u_south - u[1,:]
@@ -98,7 +100,7 @@ def apply_pressure(u, v, p, dx, dy, dt):
 # Setup mesh
 len_x, len_y = 2, 2
 # Number of pressure points
-nx, ny = 200,200
+nx, ny = 400,400
 dx, dy = len_x / nx, len_y / ny
 # These are the positions of the cell centers
 x_points = np.linspace(dx/2, len_x-dx/2, nx)
@@ -110,8 +112,8 @@ u_x_mesh, u_y_mesh = np.meshgrid(np.linspace(0, len_x, nx+1), np.linspace(-0.5*d
 v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.linspace(0, len_y, ny+1))
 
 # Constants
-dt = 0.001
-nu = 1e-6
+dt = 0.0002
+nu = 0.00001
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
@@ -133,7 +135,8 @@ for i in range(1000001):
         if i % 50 == 0 or end_time - start_time > 1 or i <= 10:
                 #plt.subplot(1, 2, 1)
                 #divergence = common.divergence(u_avg, v_avg, dx, dy)
-                plt.imshow(pressure, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y), vmin=-10, vmax=10)
+                vort = vorticity(u, v, dx, dy)
+                plt.imshow(vort, cmap=plt.cm.coolwarm, origin='lower', extent=(0, len_x, 0, len_y), vmin=-10, vmax=10)
                 plt.colorbar()
 
                 lw = 5*speed/speed.max()
