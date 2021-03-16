@@ -113,7 +113,7 @@ v_x_mesh, v_y_mesh = np.meshgrid(np.linspace(-0.5*dx, len_x+0.5*dx, nx+2), np.li
 
 # Constants
 dt = 0.0002
-nu = 0.00001
+nu = 0.0001
 
 # U: (ny+2, nx+1)
 # V: (ny+1, nx+2)
@@ -140,8 +140,8 @@ for i in range(1000001):
                 plt.colorbar()
 
                 lw = 5*speed/speed.max()
-                plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
-                #plt.quiver(x_mesh, y_mesh, u_avg, v_avg, scale=200)
+                #plt.streamplot(x_mesh, y_mesh, u_avg, v_avg, linewidth=lw)
+                plt.quiver(x_mesh[::8,::8], y_mesh[::8,::8], u_avg[::8,::8], v_avg[::8,::8], scale=50)
 
                 '''
                 plt.subplot(1, 2, 2)
